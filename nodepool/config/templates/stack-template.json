@@ -6,6 +6,59 @@
   {{end}}
 ]
 {{end}}
+{{define "SpotFleet"}}
+  "SpotFleet": {
+    "Type": "AWS::EC2::SpotFleet",
+    "Properties": {
+      "SpotFleetRequestConfigData": {
+        "IamFleetRole": {{$.Worker.SpotFleet.IAMFleetRoleRef}},
+        "AllocationStrategy": "diversified",
+        "TargetCapacity": {{$.Worker.SpotFleet.TargetCapacity}},
+        "SpotPrice": "{{$.Worker.SpotFleet.SpotPrice}}",
+        "LaunchSpecifications": [
+          {{range $subnetIndex, $subnet := $.Subnets}}
+          {{with $subnetLogicalName := printf "Subnet%d" $subnetIndex}}
+          {{range $specIndex, $spec := $.Worker.SpotFleet.LaunchSpecifications}}
+          {{if or (gt $subnetIndex 0) (gt $specIndex 0) }},{{end}}
+          {
+            "ImageId": "{{$.AMI}}",
+            "InstanceType": "{{$spec.InstanceType}}",
+            "KeyName": "{{$.KeyName}}",
+            "WeightedCapacity": {{$spec.WeightedCapacity}},
+            {{if $spec.SpotPrice}}
+            "SpotPrice": "{{$spec.SpotPrice}}",
+            {{end}}
+            "IamInstanceProfile": {
+              "Arn": {
+                "Fn::GetAtt" : ["IAMInstanceProfileWorker", "Arn"]
+              }
+            },
+            "BlockDeviceMappings": [
+              {
+                "DeviceName": "/dev/xvda",
+                "Ebs": {
+                  "VolumeSize": "{{$spec.RootVolumeSize}}",
+                  {{if gt $spec.RootVolumeIOPS 0}}
+                  "Iops": "{{$spec.RootVolumeIOPS}}",
+                  {{end}}
+                  "VolumeType": "{{$spec.RootVolumeType}}"
+                }
+              }
+            ],
+            "SecurityGroups": {{template "WorkerSecurityGroups" $}},
+            "SubnetId": {
+              "Ref": "{{$subnetLogicalName}}"
+            },
+            "UserData": "{{$.UserDataWorker}}"
+          }
+          {{end}}
+          {{end}}
+          {{end}}
+        ]
+      }
+    }
+  },
+{{end}}
 {{define "AutoScaling"}}
     "AutoScaleWorker": {
       "Properties": {
@@ -99,7 +152,11 @@
   "AWSTemplateFormatVersion": "2010-09-09",
   "Description": "kube-aws Kubernetes node pool {{.NodePoolName}}",
   "Resources": {
+    {{if .Worker.SpotFleet.Enabled}}
+    {{template "SpotFleet" .}}
+    {{else}}
     {{template "AutoScaling" .}}
+    {{end}}
     "IAMInstanceProfileWorker": {
       "Properties": {
         "Path": "/",

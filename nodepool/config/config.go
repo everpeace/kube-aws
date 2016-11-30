@@ -32,6 +32,7 @@ type ProvidedConfig struct {
 	cfg.KubeClusterSettings `yaml:",inline"`
 	cfg.WorkerSettings      `yaml:",inline"`
 	cfg.DeploymentSettings  `yaml:",inline"`
+	Worker                  `yaml:"worker,omitempty"`
 	EtcdEndpoints           string `yaml:"etcdEndpoints,omitempty"`
 	NodePoolName            string `yaml:"nodePoolName,omitempty"`
 	providedEncryptService  cfg.EncryptService
@@ -133,6 +134,7 @@ func NewDefaultCluster() *ProvidedConfig {
 	return &ProvidedConfig{
 		DeploymentSettings: defaults.DeploymentSettings,
 		WorkerSettings:     defaults.WorkerSettings,
+		Worker:             NewDefaultWorker(),
 	}
 }
 

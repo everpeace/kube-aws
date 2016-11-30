@@ -94,6 +94,14 @@ vpcId: vpc-1a2b3c4d
 routeTableId: rtb-1a2b3c4d
 `,
 		},
+		{
+			context: "WithSpotFleetEnabled",
+			configYaml: minimalValidConfigYaml + `
+worker:
+  spotFleet:
+    targetCapacity: 10
+`,
+		},
 	}
 
 	for _, validCase := range validCases {
