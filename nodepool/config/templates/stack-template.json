@@ -6,6 +6,14 @@
   {{end}}
 ]
 {{end}}
+{{define "WorkerSecurityGroupsInSpotFleet"}}
+[
+  {{range $sgIndex, $sgRef := $.WorkerSecurityGroupRefs}}
+  {{if gt $sgIndex 0}},{{end}}
+  {"GroupId":{{$sgRef}}}
+  {{end}}
+]
+{{end}}
 {{define "SpotFleet"}}
   "SpotFleet": {
     "Type": "AWS::EC2::SpotFleet",
@@ -45,7 +53,7 @@
                 }
               }
             ],
-            "SecurityGroups": {{template "WorkerSecurityGroups" $}},
+            "SecurityGroups": {{template "WorkerSecurityGroupsInSpotFleet" $}},
             "SubnetId": {
               "Ref": "{{$subnetLogicalName}}"
             },
