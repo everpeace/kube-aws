@@ -1,19 +1,3 @@
-{{define "WorkerSecurityGroups"}}
-[
-  {{range $sgIndex, $sgRef := $.WorkerSecurityGroupRefs}}
-  {{if gt $sgIndex 0}},{{end}}
-  {{$sgRef}}
-  {{end}}
-]
-{{end}}
-{{define "WorkerSecurityGroupsInSpotFleet"}}
-[
-  {{range $sgIndex, $sgRef := $.WorkerSecurityGroupRefs}}
-  {{if gt $sgIndex 0}},{{end}}
-  {"GroupId":{{$sgRef}}}
-  {{end}}
-]
-{{end}}
 {{define "SpotFleet"}}
   "SpotFleet": {
     "Type": "AWS::EC2::SpotFleet",
@@ -53,7 +37,12 @@
                 }
               }
             ],
-            "SecurityGroups": {{template "WorkerSecurityGroupsInSpotFleet" $}},
+            "SecurityGroups": [
+              {{range $sgIndex, $sgRef := $.WorkerSecurityGroupRefs}}
+              {{if gt $sgIndex 0}},{{end}}
+              {"GroupId":{{$sgRef}}}
+              {{end}}
+            ],
             "SubnetId": {
               "Ref": "{{$subnetLogicalName}}"
             },
@@ -147,7 +136,12 @@
         "ImageId": "{{.AMI}}",
         "InstanceType": "{{.WorkerInstanceType}}",
         "KeyName": "{{.KeyName}}",
-        "SecurityGroups": {{template "WorkerSecurityGroups" $}},
+        "SecurityGroups": [
+          {{range $sgIndex, $sgRef := $.WorkerSecurityGroupRefs}}
+          {{if gt $sgIndex 0}},{{end}}
+          {{$sgRef}}
+          {{end}}
+        ],
         {{if .WorkerSpotPrice}}
         "SpotPrice": {{.WorkerSpotPrice}},
         {{end}}
