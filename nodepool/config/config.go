@@ -150,6 +150,22 @@ func ClusterFromBytes(data []byte) (*ProvidedConfig, error) {
 		c.InstanceCIDR = "10.0.1.0/24"
 	}
 
+	//Computed defaults
+	launchSpecs := []LaunchSpecification{}
+	for _, spec := range c.Worker.SpotFleet.LaunchSpecifications {
+		if spec.RootVolumeType == "" {
+			spec.RootVolumeType = c.WorkerRootVolumeType
+		}
+		if spec.RootVolumeSize == 0 {
+			spec.RootVolumeSize = c.WorkerRootVolumeSize * spec.WeightedCapacity
+		}
+		if spec.RootVolumeType == "io1" && spec.RootVolumeIOPS == 0 {
+			spec.RootVolumeIOPS = c.WorkerRootVolumeIOPS * spec.WeightedCapacity
+		}
+		launchSpecs = append(launchSpecs, spec)
+	}
+	c.Worker.SpotFleet.LaunchSpecifications = launchSpecs
+
 	if err := c.valid(); err != nil {
 		return nil, fmt.Errorf("invalid cluster: %v", err)
 	}
@@ -192,6 +208,10 @@ func (c ProvidedConfig) valid() error {
 	}
 
 	if err := c.WorkerSettings.Valid(); err != nil {
+		return err
+	}
+
+	if err := c.Worker.Valid(); err != nil {
 		return err
 	}
 

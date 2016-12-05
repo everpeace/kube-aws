@@ -1,5 +1,7 @@
 package config
 
+import "fmt"
+
 type Worker struct {
 	SpotFleet `yaml:"spotFleet,omitempty"`
 }
@@ -41,10 +43,44 @@ func NewLaunchSpecification(weightedCapacity int, instanceType string) LaunchSpe
 	return LaunchSpecification{
 		WeightedCapacity: weightedCapacity,
 		InstanceType:     instanceType,
-		RootVolumeSize:   30,
+		RootVolumeSize:   0,
 		RootVolumeIOPS:   0,
 		RootVolumeType:   "gp2",
 	}
+}
+
+func (c Worker) Valid() error {
+	if err := c.SpotFleet.Valid(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c SpotFleet) Valid() error {
+	for i, spec := range c.LaunchSpecifications {
+		if err := spec.Valid(); err != nil {
+			return fmt.Errorf("invalid launchSpecification at index %d: %v", i, err)
+		}
+	}
+	return nil
+}
+
+func (c LaunchSpecification) Valid() error {
+	if c.RootVolumeType == "io1" {
+		if c.RootVolumeIOPS < 100 || c.RootVolumeIOPS > 2000 {
+			return fmt.Errorf("invalid rootVolumeIOPS: %d", c.RootVolumeIOPS)
+		}
+	} else {
+		if c.RootVolumeIOPS != 0 {
+			return fmt.Errorf("invalid rootVolumeIOPS for volume type '%s': %d", c.RootVolumeType, c.RootVolumeIOPS)
+		}
+
+		if c.RootVolumeType != "standard" && c.RootVolumeType != "gp2" {
+			return fmt.Errorf("invalid rootVolumeType: %s", c.RootVolumeType)
+		}
+	}
+	return nil
 }
 
 func (f SpotFleet) Enabled() bool {
