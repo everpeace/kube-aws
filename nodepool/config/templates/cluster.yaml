@@ -63,10 +63,14 @@ kmsKeyArn: "{{.KMSKeyARN}}"
 #
 #    # IAM role to grant the Spot fleet permission to bid on, launch, and terminate instances on your behalf
 #    # See http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-fleet-requests.html#spot-fleet-prerequisites
-#    iamFleetRoleArn: "arn:aws:iam::youraccountid:role/aws-ec2-spot-fleet-role"
+#    #
+#    # Defaults to "arn:aws:iam::youraccountid:role/aws-ec2-spot-fleet-role" assuming you've arrived "Spot Requests" in EC2 Dashboard
+#    # hence the role is automatically created for you
+#    #iamFleetRoleArn: "arn:aws:iam::youraccountid:role/kube-aws-doesnt-create-this-for-you"
 #
 #    # Price per unit hour = Price per instance hour / num of weighted capacity for the instance
-#    spotPrice: 0.06
+#    # Defaults to "0.06"
+#    #spotPrice: 0.06
 #
 #    launchSpecifications:
 #    - # Number of units provided by an EC2 instance of the instanceType.
@@ -74,16 +78,18 @@ kmsKeyArn: "{{.KMSKeyARN}}"
 #      instanceType: m3.medium
 #
 #      # Price per unit hour = Price per instance hour / num of weighted capacity for the instance
-#      spotPrice:
+#      #spotPrice:
 #
-#      # Defaults to workerRootVolumeType
-#      rootVolumeType:
+#      # Defaults to workerRootVolumeType if omitted
+#      #rootVolumeType:
 #
-#      # Defaults to workerRootVolumeSize * weightedCapacity
-#      rootVolumeSize:
+#      # Defaults to workerRootVolumeSize * weightedCapacity if omitted
+#      #rootVolumeSize:
 #
-#      # Defaults to workerRootVolumeIOPS * weightedCapacity if workerRootVolumeIOPS is non-zero.
-#      rootVolumeIOPS:
+#      # Number of provisioned IOPS when rootVlumeType is io1
+#      # Must be within the range between 100 and 2000
+#      # Defaults to workerRootVolumeIOPS * weightedCapacity if omitted
+#      #rootVolumeIOPS:
 #    - weightedCapacity: 2
 #      instanceType: m3.large
 #    - weightedCapacity: 2
