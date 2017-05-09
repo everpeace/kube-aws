@@ -387,6 +387,16 @@ worker:
 #      # Documentation: http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/dedicated-instance.html
 #      tenancy: default
 #
+#      # (Experimental) GPU Driver installation support
+#      # Currently, only Nvidia driver is supported.
+#      # This setting takes effect only when node's instance family is p2 of g2.
+#      # Otherwise, installation will be skipped even if enabled.
+#      # Make sure to choose 'docker' as container runtime when enabled this feature.
+#      gpu:
+#        nvidia:
+#          enabled: true
+#          version: "375.66"
+#
 #      # Price (Dollars) to bid for spot instances. Omit for on-demand instances.
 #      spotPrice: "0.05"
 #
