@@ -143,6 +143,7 @@ coreos:
         After=cfn-etcd-environment.service
         [Service]
         EnvironmentFile=-/etc/etcd-environment
+        EnvironmentFile=-/etc/default/kubelet
         Environment=KUBELET_IMAGE_TAG={{.K8sVer}}
         Environment=KUBELET_IMAGE_URL={{.HyperkubeImage.RktRepoWithoutTag}}
         Environment="RKT_RUN_ARGS=--volume dns,kind=host,source=/etc/resolv.conf {{.HyperkubeImage.Options}}\
@@ -204,7 +205,8 @@ coreos:
         --tls-private-key-file=/etc/kubernetes/ssl/worker-key.pem \
         {{- end }}
         --kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml \
-        --require-kubeconfig
+        --require-kubeconfig \
+        $KUBELET_OPTS
         Restart=always
         RestartSec=10
         [Install]
@@ -544,6 +546,12 @@ write_files:
           '
 
       rkt rm --uuid-file=/var/run/coreos/cfn-etcd-environment.uuid || :
+
+  - path: /etc/default/kubelet
+    permissions: 0755
+    owner: root:root
+    content: |
+      KUBELET_OPTS=""
 
   - path: /etc/kubernetes/cni/docker_opts_cni.env
     content: |
