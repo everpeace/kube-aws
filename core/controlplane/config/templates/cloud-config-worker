@@ -452,6 +452,34 @@ coreos:
         Type={{.Experimental.EphemeralImageStorage.Filesystem}}
 {{end}}
 
+{{if .Gpu.Nvidia.IsEnabledOn .InstanceType}}
+    - name: nvidia-start.service
+      enable: false
+      content: |
+        [Unit]
+        Description=Load NVIDIA module
+        After=local-fs.target
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=true
+        ExecStart=/opt/nvidia/current/bin/nvidia-start.sh
+
+        [Install]
+        WantedBy=multi-user.target
+    - name: nvidia-persistenced.service
+      enable: false
+      content: |
+        [Unit]
+        Description=NVIDIA Persistence Daemon
+        Wants=local-fs.target
+
+        [Service]
+        Type=forking
+        ExecStart=/opt/nvidia/current/bin/nvidia-persistenced --user nvidia-persistenced --no-persistence-mode --verbose
+        ExecStopPost=/bin/rm -rf /var/run/nvidia-persistenced
+{{end}}
+
 {{if .SSHAuthorizedKeys}}
 ssh_authorized_keys:
   {{range $sshkey := .SSHAuthorizedKeys}}
@@ -479,6 +507,15 @@ ssh_authorized_keys:
         [Install]
         WantedBy=kubelet.service
 {{end}}
+
+{{if .Gpu.Nvidia.IsEnabledOn .InstanceType}}
+users:
+  - name: nvidia-persistenced
+    gecos: NVIDIA Persistence Daemon
+    homedir: /
+    shell: /sbin/nologin
+{{end}}
+
 write_files:
 {{- if .CustomFiles}}
   {{- range $w := .CustomFiles}}
@@ -1140,35 +1177,6 @@ write_files:
       # This script is borrowed from https://github.com/Clarifai/coreos-nvidia/pull/4
       /usr/sbin/insmod /opt/nvidia/current/lib/modules/$(uname -r)/video/$1
 
-  - path: /opt/nvidia-build/nvidia-persistenced.service
-    owner: root:root
-    permissions: 0644
-    content: |
-      [Unit]
-      Description=NVIDIA Persistence Daemon
-      Wants=local-fs.target
-
-      [Service]
-      Type=forking
-      ExecStart=/opt/nvidia/current/bin/nvidia-persistenced --user nvidia-persistenced --no-persistence-mode --verbose
-      ExecStopPost=/bin/rm -rf /var/run/nvidia-persistenced
-
-  - path: /opt/nvidia-build/nvidia-start.service
-    owner: root:root
-    permissions: 0644
-    content: |
-      [Unit]
-      Description=Load NVIDIA module
-      After=local-fs.target
-
-      [Service]
-      Type=oneshot
-      RemainAfterExit=true
-      ExecStart=/opt/nvidia/current/bin/nvidia-start.sh
-
-      [Install]
-      WantedBy=multi-user.target
-
   - path: /opt/nvidia-build/nvidia-start.sh
     owner: root:root
     permissions: 0755
@@ -1261,11 +1269,6 @@ write_files:
       echo "/opt/nvidia/current/lib64" > /etc/ld.so.conf.d/nvidia.conf
       ldconfig
 
-      echo "Configuring nvidia persistence user"
-      id -u nvidia-persistenced >/dev/null 2>&1 || \
-      useradd --system --home '/' --shell '/sbin/nologin' -c 'NVIDIA Persistence Daemon' nvidia-persistenced
-
-      cp *.service /etc/systemd/system/
       systemctl daemon-reload
       systemctl enable nvidia-start.service
       systemctl start nvidia-start.service
