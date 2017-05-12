@@ -41,15 +41,15 @@ func (c NvidiaSetting) IsEnabledOn(instanceType string) bool {
 }
 
 func (c Gpu) Valid(instanceType string) error {
-	if c.Nvidia.Enabled && len(c.Nvidia.Version) == 0 {
-		return errors.New(`gpu.nvidia.version must not be empty when gpu.nvidia is enabled.`)
-	}
 	if c.Nvidia.Enabled && !isGpuEnabledInstanceType(instanceType) {
-		fmt.Printf("WARNING: instance type %v doesn't support GPU (only %v instance family do). GPU setting will be ignored.\n", instanceType, GPUEnabledInstanceFamily)
+		return errors.New(fmt.Sprintf("instance type %v doesn't support GPU. You can enable Nvidia driver intallation support only when use %v instance family.", instanceType, GPUEnabledInstanceFamily))
 
 	}
 	if !c.Nvidia.Enabled && isGpuEnabledInstanceType(instanceType) {
 		fmt.Printf("WARNING: Nvidia GPU driver intallation is disabled although instance type %v does support GPU.  You have to install Nvidia GPU driver by yourself to schedule gpu resource.\n", instanceType)
+	}
+	if c.Nvidia.Enabled && len(c.Nvidia.Version) == 0 {
+		return errors.New(`gpu.nvidia.version must not be empty when gpu.nvidia is enabled.`)
 	}
 
 	return nil

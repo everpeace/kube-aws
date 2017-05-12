@@ -389,8 +389,7 @@ worker:
 #
 #      # (Experimental) GPU Driver installation support
 #      # Currently, only Nvidia driver is supported.
-#      # This setting takes effect only when node's instance family is p2 of g2.
-#      # Otherwise, installation will be skipped even if enabled.
+#      # This setting takes effect only when configured instance type is GPU enabled (p2 or g2).
 #      # Make sure to choose 'docker' as container runtime when enabled this feature.
 #      gpu:
 #        nvidia:

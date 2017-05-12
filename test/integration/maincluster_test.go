@@ -3361,6 +3361,7 @@ worker:
 worker:
   nodePools:
   - name: pool1
+    instanceType: p2.xlarge
     gpu:
       nvidia:
         enabled: true
@@ -4174,12 +4175,27 @@ worker:
 worker:
   nodePools:
   - name: pool1
+    instanceType: p2.xlarge
     gpu:
       nvidia:
         enabled: true
         version: ""
 `,
 			expectedErrorMessage: `gpu.nvidia.version must not be empty when gpu.nvidia is enabled.`,
+		},
+		{
+			context: "WithGPUDisabledWorkerButIntallationSupportEnabled",
+			configYaml: minimalValidConfigYaml + `
+worker:
+  nodePools:
+  - name: pool1
+    instanceType: t2.medium
+    gpu:
+      nvidia:
+        enabled: true
+        version: ""
+`,
+			expectedErrorMessage: `instance type t2.medium doesn't support GPU. You can enable Nvidia driver intallation support only when use [p2 g2] instance family.`,
 		},
 	}
 
