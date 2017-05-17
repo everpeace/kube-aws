@@ -141,6 +141,10 @@ coreos:
         [Unit]
         Wants=flanneld.service cfn-etcd-environment.service
         After=cfn-etcd-environment.service
+        {{- if .Gpu.Nvidia.IsEnabledOn .InstanceType }}
+        Wants=nvidia-start.service
+        After=nvidia-start.service
+        {{- end }}
         [Service]
         EnvironmentFile=-/etc/etcd-environment
         EnvironmentFile=-/etc/default/kubelet
@@ -180,10 +184,9 @@ coreos:
         {{if .UseCalico -}}
         ExecStartPre=/usr/bin/docker run --rm -e SLEEP=false -v /opt/cni/bin:/host/opt/cni/bin {{ .CalicoCniImage.RepoWithTag }} /install-cni.sh
         {{end -}}
-        {{ if .Gpu.Nvidia.IsEnabledOn .InstanceType -}}
-        ExecStartPre=/opt/nvidia-build/build-and-install.sh
-        TimeoutStartSec=900
-        {{ end -}}
+        {{- if .Gpu.Nvidia.IsEnabledOn .InstanceType }}
+        ExecStartPre=/usr/bin/systemctl is-active nvidia-start.service
+        {{- end }}
         ExecStart=/usr/lib/coreos/kubelet-wrapper \
         --cni-conf-dir=/etc/kubernetes/cni/net.d \
         {{/* Work-around until https://github.com/kubernetes/kubernetes/issues/43967 is fixed via https://github.com/kubernetes/kubernetes/pull/43995 */ -}}
@@ -459,14 +462,34 @@ coreos:
         [Unit]
         Description=Load NVIDIA module
         After=local-fs.target
+        Wants=nvidia-install.service
+        After=nvidia-install.service
 
         [Service]
         Type=oneshot
         RemainAfterExit=true
+        ExecStartPre=/usr/bin/systemctl is-active nvidia-install.service
         ExecStart=/opt/nvidia/current/bin/nvidia-start.sh
 
         [Install]
         WantedBy=multi-user.target
+
+    - name: nvidia-install.service
+      enable: false
+      content: |
+        [Unit]
+        Description=Install NVIDIA driver and modules
+        After=local-fs.target
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=true
+        ExecStart=/opt/nvidia-build/util/retry.sh 0 /opt/nvidia-build/build-and-install.sh
+        TimeoutStartSec=900
+
+        [Install]
+        WantedBy=multi-user.target
+
     - name: nvidia-persistenced.service
       enable: false
       content: |
@@ -905,7 +928,7 @@ write_files:
     content: |
       Most of scripts in this directory are borrowed from https://github.com/Clarifai/coreos-nvidia/
       Especially from https://github.com/Clarifai/coreos-nvidia/pull/4
-      
+
   - path: /opt/nvidia-build/LICENSE
     owner: root:root
     permissions: 0644
@@ -927,11 +950,15 @@ write_files:
 
       if is_gpu_enabled $INSTANCE_TYPE; then
         MOD_INSTALLED=$(lsmod | grep nvidia | wc -l)
-        if [[ $MOD_INSTALLED -lt 0 ]] || [[ ! -e /opt/nvidia/current ]]; then
+        if [[ $MOD_INSTALLED -ne 5 ]]; then
+          (lsmod | grep nvidia_uvm) && rmmod -f nvidia_uvm
+          (lsmod | grep nvidia_drm) && rmmod -f nvidia_drm
+          (lsmod | grep nvidia_modeset) && rmmod -f nvidia_modeset
+          (lsmod | grep nvidia) && rmmod -f nvidia
+
           cd /opt/nvidia-build/
           bash -x build.sh {{.Gpu.Nvidia.Version}}
           bash -x nvidia-install.sh {{.Gpu.Nvidia.Version}}
-          /usr/bin/systemctl is-active nvidia-start.service
         else
           echo "Nvidia drivers seems to be installed already. Skipped."
         fi
@@ -1269,8 +1296,27 @@ write_files:
       echo "/opt/nvidia/current/lib64" > /etc/ld.so.conf.d/nvidia.conf
       ldconfig
 
-      systemctl daemon-reload
-      systemctl enable nvidia-start.service
-      systemctl start nvidia-start.service
+  - path: /opt/nvidia-build/util/retry.sh
+    owner: root:root
+    permissions: 0755
+    content: |
+      #! /bin/bash
+      max_attempts="$1"; shift
+      cmd="$@"
+      attempt_num=1
+      attempt_interval_sec=3
+
+      until $cmd
+      do
+          if (( attempt_num == max_attempts ))
+          then
+              echo "Attempt $attempt_num failed and there are no more attempts left!"
+              return 1
+          else
+              echo "Attempt $attempt_num failed! Trying again in $attempt_interval_sec seconds..."
+              ((attempt_num++))
+              sleep $attempt_interval_sec;
+          fi
+      done
 
 {{ end }}
