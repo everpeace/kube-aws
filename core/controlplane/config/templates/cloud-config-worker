@@ -142,7 +142,7 @@ coreos:
         Wants=flanneld.service cfn-etcd-environment.service
         After=cfn-etcd-environment.service
         {{- if .Gpu.Nvidia.IsEnabledOn .InstanceType }}
-        Wants=nvidia-start.service
+        Requires=nvidia-start.service
         After=nvidia-start.service
         {{- end }}
         [Service]
@@ -184,9 +184,6 @@ coreos:
         {{if .UseCalico -}}
         ExecStartPre=/usr/bin/docker run --rm -e SLEEP=false -v /opt/cni/bin:/host/opt/cni/bin {{ .CalicoCniImage.RepoWithTag }} /install-cni.sh
         {{end -}}
-        {{- if .Gpu.Nvidia.IsEnabledOn .InstanceType }}
-        ExecStartPre=/usr/bin/systemctl is-active nvidia-start.service
-        {{- end }}
         ExecStart=/usr/lib/coreos/kubelet-wrapper \
         --cni-conf-dir=/etc/kubernetes/cni/net.d \
         {{/* Work-around until https://github.com/kubernetes/kubernetes/issues/43967 is fixed via https://github.com/kubernetes/kubernetes/pull/43995 */ -}}
@@ -462,30 +459,13 @@ coreos:
         [Unit]
         Description=Load NVIDIA module
         After=local-fs.target
-        Wants=nvidia-install.service
-        After=nvidia-install.service
 
         [Service]
         Type=oneshot
         RemainAfterExit=true
-        ExecStartPre=/usr/bin/systemctl is-active nvidia-install.service
-        ExecStart=/opt/nvidia/current/bin/nvidia-start.sh
-
-        [Install]
-        WantedBy=multi-user.target
-
-    - name: nvidia-install.service
-      enable: false
-      content: |
-        [Unit]
-        Description=Install NVIDIA driver and modules
-        After=local-fs.target
-
-        [Service]
-        Type=oneshot
-        RemainAfterExit=true
-        ExecStart=/opt/nvidia-build/util/retry.sh 0 /opt/nvidia-build/build-and-install.sh
+        ExecStartPre=/opt/nvidia-build/util/retry.sh 0 /opt/nvidia-build/build-and-install.sh
         TimeoutStartSec=900
+        ExecStart=/opt/nvidia/current/bin/nvidia-start.sh
 
         [Install]
         WantedBy=multi-user.target
